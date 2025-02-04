@@ -277,6 +277,11 @@ func TestAzureDevopsClient_GetModifiedFiles(t *testing.T) {
 				// We write a header that means there's an additional page.
 				w.Write([]byte(resp)) // nolint: errcheck
 				return
+			// The third url for test of arguments skip and top in diff endpoint
+			case "/owner/project/_apis/git/repositories/repo/diffs/commits?%24skip=456&%24top=123&api-version=5.1&baseVersion=new_feature&targetVersion=npaulk%2Fmy_work":
+				// We write a header that means there's an additional page.
+				w.Write([]byte(resp)) // nolint: errcheck
+				return
 			default:
 				t.Errorf("got unexpected request at %q", r.RequestURI)
 				http.Error(w, "not found", http.StatusNotFound)
@@ -291,6 +296,29 @@ func TestAzureDevopsClient_GetModifiedFiles(t *testing.T) {
 	defer disableSSLVerification()()
 
 	files, err := client.GetModifiedFiles(
+		logger,
+		models.Repo{
+			FullName:          "owner/project/repo",
+			Owner:             "owner",
+			Name:              "repo",
+			CloneURL:          "",
+			SanitizedCloneURL: "",
+			VCSHost: models.VCSHost{
+				Type:     models.AzureDevops,
+				Hostname: "dev.azure.com",
+			},
+		}, models.PullRequest{
+			Num: 1,
+		})
+	Ok(t, err)
+	Equals(t, []string{"file1.txt", "file2.txt"}, files)
+
+	// Redefined client for test of top and skip arguments in azuredevops diffs endpoint
+	client, err = vcs.NewAzureDevopsClient(testServerURL.Host, "user", "token", vcs.WithDiffTop(123), vcs.WithDiffSkip(456))
+	Ok(t, err)
+	defer disableSSLVerification()()
+
+	files, err = client.GetModifiedFiles(
 		logger,
 		models.Repo{
 			FullName:          "owner/project/repo",
